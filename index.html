@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第八组 - 终极智能电商平台</title>
+    <!-- 引入 Tailwind CSS 用于构建漂亮的界面 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 购物车商品添加时的滑动动画 */
+        .cart-item-anim { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+        
+        /* 页面切换的淡入动画 */
+        .page-section { display: none; }
+        .page-section.active { display: block; animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* 规格按钮选中时的样式 */
+        .spec-btn.active { border-color: #4f46e5; background-color: #e0e7ff; color: #4f46e5; font-weight: bold; }
+        
+        /* 物流时间轴样式 */
+        .logistics-timeline { position: relative; margin-left: 10px; padding-left: 20px; border-left: 2px solid #e5e7eb; }
+        .logistics-item { position: relative; margin-bottom: 20px; }
+        .logistics-item::before { content: ''; position: absolute; left: -27px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: #d1d5db; border: 2px solid white; }
+        .logistics-item.active::before { background: #4f46e5; box-shadow: 0 0 0 3px #e0e7ff; }
+        .logistics-item.active .logistics-text { color: #111827; font-weight: bold; }
+        .logistics-text { color: #6b7280; font-size: 14px; }
+        .logistics-time { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+        
+        /* 评价星星样式 */
+        .star { cursor: pointer; font-size: 28px; color: #d1d5db; transition: color 0.2s; }
+        .star.active { color: #fbbf24; }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col h-screen overflow-hidden font-sans text-gray-800">
+
+    <!-- ================= 顶部导航栏 ================= -->
+    <nav class="bg-white shadow-sm z-20 flex justify-between items-center px-6 py-3 border-b border-gray-200">
+        <!-- Logo 区域 -->
+        <div class="flex items-center gap-2 cursor-pointer" onclick="switchPage('home')">
+            <span class="text-2xl">🛒</span>
+            <h1 class="text-xl font-black text-indigo-600 tracking-wider">第八组智能商城</h1>
+        </div>
+        
+        <!-- 导航菜单 -->
+        <div class="flex space-x-6 font-bold text-gray-600">
+            <button onclick="switchPage('home')" id="nav-home" class="hover:text-indigo-600 text-indigo-600 transition">🏠 首页</button>
+            <button onclick="switchPage('logistics')" id="nav-logistics" class="hover:text-indigo-600 transition">🚚 物流中心</button>
+            <button onclick="switchPage('customer')" id="nav-customer" class="hover:text-indigo-600 transition">👤 客户中心</button>
+        </div>
+        
+        <!-- 用户信息区域 -->
+        <div class="flex items-center space-x-3">
+            <div id="nav-user-info" class="text-sm font-bold text-gray-700">未登录</div>
+            <button onclick="openAuthModal()" id="auth-btn" class="bg-indigo-600 text-white px-4 py-1.5 rounded-full text-sm font-bold hover:bg-indigo-700 transition">登录 / 注册</button>
+        </div>
+    </nav>
+
+    <!-- ================= 主体内容区 ================= -->
+    <div class="flex-1 flex overflow-hidden relative">
+        
+        <!-- 左侧侧边栏：商品分类 -->
+        <aside class="w-64 bg-white shadow-md z-10 flex flex-col border-r border-gray-200" id="sidebar">
+            <nav class="flex-1 p-4 space-y-2" id="category-list">
+                <!-- 分类按钮由 JS 动态生成 -->
+            </nav>
+        </aside>
+
+        <!-- 右侧主内容展示区 -->
+        <main class="flex-1 p-6 overflow-y-auto relative" id="main-content">
+            
+            <!-- ====== 页面 1：首页 ====== -->
+            <section id="page-home" class="page-section active">
+                <!-- 搜索框 -->
+                <div class="relative w-full max-w-lg mb-6">
+                    <input type="text" id="search-input" onkeyup="renderProducts()" placeholder="搜索您想要的商品..." class="w-full pl-10 pr-4 py-2 border rounded-full text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                    <span class="absolute left-3 top-2 text-gray-400">🔍</span>
+                </div>
+
+                <!-- 猜你喜欢 (推荐区) -->
+                <div class="mb-8 hidden" id="recommend-section">
+                    <h2 class="text-lg font-bold text-indigo-600 mb-3 flex items-center gap-2">✨ 猜你喜欢 <span class="text-xs text-gray-400 font-normal">(基于您的偏好设置)</span></h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="recommend-grid"></div>
+                </div>
+
+                <!-- 分类介绍头 -->
+                <div class="bg-white p-5 rounded-2xl shadow-sm mb-6 border-l-4 border-indigo-500">
+                    <h2 class="text-2xl font-black text-gray-800" id="section-title">全部商品</h2>
+                    <p class="text-sm text-gray-500 mt-2" id="section-desc">汇聚全网好物，为您提供最优质的购物体验。</p>
+                </div>
+
+                <!-- 商品网格展示 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="product-grid">
+                    <!-- 商品卡片由 JS 动态生成 -->
+                </div>
+            </section>
+
+            <!-- ====== 页面 2：物流中心 ====== -->
+            <section id="page-logistics" class="page-section max-w-4xl">
+                <h2 class="text-2xl font-black text-gray-800 mb-6">🚚 我的物流与订单</h2>
+                <div id="order-history-list" class="space-y-4">
+                    <!-- 订单记录由 JS 渲染 -->
+                </div>
+            </section>
+
+            <!-- ====== 页面 3：客户中心 ====== -->
+            <section id="page-customer" class="page-section max-w-2xl">
+                <h2 class="text-2xl font-black text-gray-800 mb-6">👤 个人客户中心</h2>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6">
+                    <div class="flex items-center gap-4 mb-4 border-b pb-4">
+                        <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center text-3xl">😎</div>
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-800" id="cust-uid">未登录</h3>
+                            <p class="text-sm text-gray-500">尊贵的 <span id="cust-level" class="font-bold text-yellow-600">普通会员</span></p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4 text-sm text-gray-600">
+                        <div><span class="font-bold text-gray-800">当前身份:</span> <span id="cust-identity">成人</span></div>
+                        <div><span class="font-bold text-gray-800">偏好分类:</span> <span id="cust-prefs">暂未设置</span></div>
+                    </div>
+                    <div class="mt-6">
+                        <button onclick="openPrefModal()" class="bg-indigo-50 text-indigo-600 px-4 py-2 rounded font-bold hover:bg-indigo-100 transition">修改商品偏好</button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- ================= 购物车抽屉 ================= -->
+        <div class="absolute top-0 right-0 h-full w-80 bg-white shadow-2xl transform translate-x-full transition-transform duration-300 flex flex-col z-30" id="cart-panel">
+            <div class="p-4 border-b flex justify-between bg-indigo-600 text-white">
+                <h3 class="text-lg font-bold">🛒 我的购物车</h3>
+                <button onclick="toggleCart()" class="text-2xl font-bold">&times;</button>
+            </div>
+            <!-- 购物车商品列表 -->
+            <div class="flex-1 p-4 overflow-y-auto space-y-3" id="cart-items"></div>
+            
+            <!-- 结算区域 -->
+            <div class="p-4 border-t bg-gray-50">
+                <label class="text-xs font-bold text-gray-500 mb-1 block">选择支付方式 (享专属优惠):</label>
+                <select id="pay-method" class="w-full border p-2 mb-3 text-sm rounded outline-none" onchange="updateCart()">
+                    <option value="alipay">支付宝 (无额外优惠)</option>
+                    <option value="bank_card">银行卡 (满100立减5元)</option>
+                    <option value="unionpay">银联支付 (全场98折)</option>
+                </select>
+                <div class="flex justify-between text-lg font-black text-red-500 mb-3">
+                    <span>应付总额:</span>
+                    <span id="cart-total">￥0.00</span>
+                </div>
+                <button onclick="checkout()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition">立即支付</button>
+            </div>
+        </div>
+
+        <!-- 悬浮购物车按钮 -->
+        <button onclick="toggleCart()" class="absolute bottom-8 right-8 bg-indigo-600 text-white p-4 rounded-full shadow-2xl flex items-center hover:scale-105 transition z-20">
+            <span class="text-2xl">🛒</span>
+            <span id="cart-count" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center border-2 border-white">0</span>
+        </button>
+    </div>
+
+    <!-- ================= 各种弹窗 (Modals) ================= -->
+
+    <!-- 1. 商品规格与详情弹窗 -->
+    <div id="spec-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-2xl shadow-2xl relative flex flex-col md:flex-row overflow-hidden">
+            <button onclick="document.getElementById('spec-modal').classList.add('hidden')" class="absolute top-2 right-2 text-gray-400 hover:text-red-500 text-3xl font-bold z-10">&times;</button>
+            
+            <!-- 左侧：样貌大图 -->
+            <div class="w-full md:w-1/2 bg-gray-50 p-6 flex flex-col items-center justify-center">
+                <div class="w-48 h-48 bg-white rounded-2xl shadow flex items-center justify-center text-8xl mb-4" id="spec-img">📦</div>
+                <div class="flex gap-2" id="spec-thumbs">
+                    <!-- 缩略图由 JS 生成 -->
+                </div>
+            </div>
+            
+            <!-- 右侧：详情与选择 -->
+            <div class="w-full md:w-1/2 p-6 flex flex-col">
+                <h2 class="text-2xl font-black mb-1" id="spec-title">商品</h2>
+                <p class="text-red-500 font-black text-3xl mb-4" id="spec-price">￥0.00</p>
+                
+                <!-- 厂商资质 -->
+                <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                    <p class="text-xs font-bold text-green-800 mb-1">🛡️ 厂商资质认证</p>
+                    <div class="flex gap-2 flex-wrap" id="spec-certs"></div>
+                </div>
+                
+                <!-- 规格选择 -->
+                <div class="mb-4">
+                    <p class="text-sm text-gray-500 mb-2 font-bold">规格/尺寸:</p>
+                    <div class="flex flex-wrap gap-2" id="spec-options"></div>
+                </div>
+                
+                <!-- 购买数量 -->
+                <div class="mb-6">
+                    <p class="text-sm text-gray-500 mb-2 font-bold">购买数量:</p>
+                    <div class="flex items-center gap-4">
+                        <button onclick="changeQty(-1)" class="w-8 h-8 rounded bg-gray-100 font-bold hover:bg-gray-200">-</button>
+                        <span class="text-lg font-bold w-8 text-center" id="spec-qty">1</span>
+                        <button onclick="changeQty(1)" class="w-8 h-8 rounded bg-gray-100 font-bold hover:bg-gray-200">+</button>
+                    </div>
+                </div>
+                
+                <button onclick="confirmAddToCart()" class="mt-auto w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition">加入购物车</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. 物流轨迹弹窗 -->
+    <div id="logistics-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+        <div class="bg-white p-6 rounded-2xl w-
